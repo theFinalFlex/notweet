@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tweet Terminal</title>
+    <style>
+        body {
+            background-image: url('{{ url_for('static', filename='frogbackground.webp') }}');
+            background-size: cover;
+            font-family: 'Courier New', Courier, monospace;
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
+        }
+        .terminal {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 0px;
+            width: 800px;
+            height: 400px;
+            margin: auto;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid #000;
+            display: flex;
+            flex-direction: column;
+        }
+        .terminal-content {
+            width: 100%;
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+        .prompt, .logo {
+            color: #3e693e;
+        }
+        .message {
+            color: #3e693e;
+            white-space: pre-wrap;
+            outline: none;
+            line-height: 1.5em;
+        }
+        .blinking-cursor::after {
+            content: '|';
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 50% {
+                opacity: 1;
+            }
+            50.1%, 100% {
+                opacity: 0;
+            }
+        }
+        .logo {
+            font-size: 14px;
+            white-space: pre;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal" id="terminal">
+        <div class="terminal-content" id="terminal-content">
+            <div class="logo">
+                <pre>
+                    (o)--(o)    
+                   /.______.\   
+                   \________/   
+                  ./        \.  
+                 ( .        . ) 
+                  \ \_\\//_/ /  
+                   ~~  ~~  ~~   
+</pre>
+            </div>
+            <div class="prompt-line">
+                <span class="prompt">thefinalfl3192@notweet:~$</span><span id="message" class="message blinking-cursor" contenteditable="true" onkeypress="handleKeyPress(event)"></span>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Draggable functionality
+        const terminal = document.getElementById('terminal');
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        terminal.addEventListener('mousedown', function(e) {
+            if (e.target.id === 'message') return;
+            isDragging = true;
+            offsetX = e.clientX - terminal.offsetLeft;
+            offsetY = e.clientY - terminal.offsetTop;
+            terminal.style.cursor = 'move';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                terminal.style.left = (e.clientX - offsetX) + 'px';
+                terminal.style.top = (e.clientY - offsetY) + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            isDragging = false;
+            terminal.style.cursor = 'default';
+        });
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const messageEl = document.getElementById('message');
+                const message = messageEl.innerText.trim();
+
+                // Clear command handling
+                if (message.toLowerCase() === 'clear') {
+                    document.getElementById('terminal-content').innerHTML = `<div class="logo"><pre>(o)--(o)\n/.______.\\\n\\________/\n./        \\\n( .        , )\n \\ \\_\\//_/ /\n  ~~  ~~  ~~</pre></div>`;
+                    addPromptLine();
+                } else {
+                    // Simulate sending a tweet and receiving a response
+                    fetch('/post_tweet', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `content=${encodeURIComponent(message)}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const responseMessage = `<div>${data.message}</div>`;
+                        document.getElementById('terminal-content').innerHTML += responseMessage;
+                        addPromptLine();
+                    })
+                    .catch(error => {
+                        const errorMessage = '<div>An error occurred. Please try again.</div>';
+                        document.getElementById('terminal-content').innerHTML += errorMessage;
+                        addPromptLine();
+                    });
+                }
+            }
+        }
+
+        function addPromptLine() {
+            removeBlinkingCursor();
+            const newPrompt = document.createElement('div');
+            newPrompt.classList.add('prompt-line');
+            newPrompt.innerHTML = '<span class="prompt">thefinalfl3192@notweet:~$</span><span id="message" class="message blinking-cursor" contenteditable="true" onkeypress="handleKeyPress(event)"></span>';
+            document.getElementById('terminal-content').appendChild(newPrompt);
+            focusMessageInput();
+        }
+
+        function removeBlinkingCursor() {
+            const previousInputs = document.querySelectorAll('.message');
+            previousInputs.forEach(input => input.classList.remove('blinking-cursor'));
+        }
+
+        function focusMessageInput() {
+            const messageInput = document.querySelector('.blinking-cursor');
+            if (messageInput) {
+                messageInput.focus();
+                // Move the cursor to the end of the input
+                const range = document.createRange();
+                const sel = window.getSelection();
+                range.setStart(messageInput.childNodes[0] || messageInput, messageInput.innerText.length);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        }
+
+        // Initial focus on message box
+        focusMessageInput();
+
+        // Refocus on the message box after clicking outside
+        document.body.addEventListener('click', () => {
+            focusMessageInput();
+        });
+    </script>
+</body>
+</html>
